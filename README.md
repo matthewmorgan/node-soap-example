@@ -1,5 +1,8 @@
 # node-soap-example
-A simple SOAP server and client example using the node-soap package and express.
+A simple SOAP server and client example using the node-soap package and express.  Forked from the original here: https://github.com/officer-rosmarino/node-soap-example
+
+## Modifications of original
+So far, I've just updated the JS to be more modern and idiomatic, and removed an unused file.  I don't intend to maintain this, just keeping it for reference.
 
 # Introduction
 I'm not an expert in Javascript, nor Node, nor SOAP, but I had the necessity to create a SOAP server using Node.js. Since I found the documentation to be a 
@@ -10,9 +13,9 @@ This README will go through a super simple yet kinda comprihensive example to
 create a SOAP service and client in Node.js. The service has also been tested and is discoverable using .NET and its service reference tool.
 
 # Example description
-To show how things work, we will use a very simple example: we want to create a web service that allows a user to split a string message into its components, based on a user defined splitter character.
+To show how things work, we will use a very simple example: we want to create a web service that allows a user to split a string message into its components, based on a user defined splitChar character.
 
-For instance, we want the service to split the string "id1:12:34:56:out42" using the character ":" as splitter (which should result into 'id1', '12', '34', '56', 'out42').
+For instance, we want the service to split the string "id1:12:34:56:out42" using the character ":" as splitChar (which should result into 'id1', '12', '34', '56', 'out42').
 
 # Install
 Install the required packages by running  `npm install` in the project 
@@ -27,53 +30,42 @@ This section will explain the code, I hope this helps you to understand it bette
 ## The server
 `app.js` contains the service code. Let's go through it.
 
-We first define a function named `splitter_function`. This is the function our service will call in order to perform the split.
+We first define a function named `splitFunction`. This is the function our service will call in order to perform the split.
 
 ```
-function splitter_function(args) {
-    console.log('splitter_function');
-    var splitter = args.splitter;
-    var splitted_msg = args.message.split(splitter);
-    var result = [];
-    for(var i=0; i<splitted_msg.length; i++){
-      result.push(splitted_msg[i]);
-    }
-    return {
-        result: result
-        }
-}
+const splitFunction = ({message, splitChar}) => ({
+  result: message.split(splitChar)
+})
+
 ```
 
-This does nothing but reading the parameters and perform the split, pack the components into an array and return it. Please notice that there is absolutely zero parameter checking as it's not the scope of this example.
+This does nothing but reading the parameters and perform the split, pack the components into an array and return it. Please notice that there is absolutely zero parameter checking as it's out of the scope of this example.
 
 Next, we define the service, read the WSDL file and launch the server:
 ```
 var serviceObject = {
   MessageSplitterService: {
         MessageSplitterServiceSoapPort: {
-            MessageSplitter: splitter_function
+            MessageSplitter: splitFunction
         },
         MessageSplitterServiceSoap12Port: {
-            MessageSplitter: splitter_function
+            MessageSplitter: splitFunction
         }
     }
 };
 
 // load the WSDL file
-var xml = fs.readFileSync('service.wsdl', 'utf8');
+const xml = fs.readFileSync('service.wsdl', 'utf8');
 // create express app
-var app = express();
+const app = express();
 
 // root handler
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
   res.send('Node Soap Example!<br /><a href="https://github.com/macogala/node-soap-example#readme">Git README</a>');
 })
 
-var port = 8000;
 // Launch the server and listen on *port*
-app.listen(port, function () {
-  console.log('Listening on port ' + port);
-  var wsdl_path = "/wsdl";
+app.listen(port, () => {
   // create SOAP server that listens on *path*
   soap.listen(app, wsdl_path, serviceObject, xml);
   console.log("Check http://localhost:" + port + wsdl_path +"?wsdl to see if the service is working");
@@ -105,14 +97,6 @@ means that we have a parameter called message, that occurs exacly 1 time, and is
 We then define the output structure creating `<s:element name="MessageSplitterResponse">`. Notice that the names are not important, we will map later what type need to be considered as input or output.
 
 **IMPORTANT:** the parameters' names need to match those that will be used into the service and client functions (see app.js and client.js):
-
-`app.js`
-```
-[...]
-var splitter = args.splitter;
-var splitted_msg = args.message.split(splitter);
-[...]
-```
 
 ### WSDL messages
 Following the types, we have the messages part. `<wsdl:message>` describes the data being exchanged between the service and the client. We define two messages, one for the input `MessageSplitterMessageIn`, that refers to the request data type, and one for the output, `MessageSplitterMessageOut`, that refers to the response data type.
@@ -175,13 +159,13 @@ Each `<wsdl:port>` has 2 elements: a `name` and a `binding`. The `name` has to b
 
 Now, recall the service definition in the `app.js` file:
 ```
-var serviceObject = {
+const serviceObject = {
   MessageSplitterService: {
         MessageSplitterServiceSoapPort: {
-            MessageSplitter: splitter_function
+            MessageSplitter: splitFunction
         },
         MessageSplitterServiceSoap12Port: {
-            MessageSplitter: splitter_function
+            MessageSplitter: splitFunction
         }
     }
 };
@@ -191,28 +175,29 @@ The `<wsdl:service name>` and the port `<wsdl:port name>` must match the names s
 ## Client
 The `client.js` file specifies a client.
 ```
-var soap = require('soap');
-var url = 'http://localhost:8000/wsdl?wsdl';
+const soap = require('soap');
+const url = 'http://localhost:8000/wsdl?wsdl';
 
 // Create client
-soap.createClient(url, function (err, client) {
+soap.createClient(url, (err, client) => {
   if (err){
     throw err;
   }
-  var args = {
+  const args = {
     message: "id1:12:34:56:out42",
-    splitter: ":"
+    splitChar: ":"
   };
   // call the service
-  client.MessageSplitter(args, function (err, res) {
-    if (err)
+  client.MessageSplitter(args, (err, res) => {
+    if (err) {
       throw err;
-      // print the service returned result
+    }
+  // print the service returned result
     console.log(res); 
   });
 });
 ```
-The file is self-explainatory, just make sure you create the args with the same parameters names specified in the wsdl file.
+The file is self-explanatory, just make sure you create the args with the same parameters names specified in the wsdl file.
 
 # References
 1. [https://www.tutorialspoint.com/wsdl](https://www.tutorialspoint.com/wsdl
